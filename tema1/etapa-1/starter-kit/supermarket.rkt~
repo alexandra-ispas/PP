@@ -1,0 +1,95 @@
+#lang racket
+;; Ispas Alexandra-Petrina 322CDb
+;; alexandra.ispas@stud.acs.upb.ro
+
+(require racket/match)
+
+(provide (all-defined-out))
+
+(define ITEMS 5)
+
+; Definim o structură care descrie o casă prin:
+; - index (de la 1 la 4)
+; - tt (timpul total descris mai sus)
+; - queue (coada cu persoanele care așteaptă)
+(define-struct counter (index tt queue) #:transparent)
+
+
+; functie care intoarce o structură counter goală.
+; tt este 0 si coada este vidă.
+(define (empty-counter index)
+  (make-counter index 0 '()))
+
+
+
+; funcție care crește tt-ul unei case cu un număr dat de minute.
+(define (tt+ C minutes)
+  (struct-copy counter C
+               [tt (+ (match C [(counter index tt queue) tt]) minutes)]))
+  
+
+; funcție care primește o listă de case și intoarce o pereche dintre:
+; - indexul casei (din listă) care are cel mai mic tt
+; - tt-ul acesteia
+(define (min-tt counters) 
+  (define C (get-min-tt (cdr counters) (car counters)))
+  (cons (counter-index C) (counter-tt C)))
+ 
+
+;intoarce o structura de tip counter care are cel mai mic tt
+(define (get-min-tt counters C)                
+  (if (null? counters)
+      C
+      (if(=(counter-tt(car counters)) (counter-tt C))
+         (if(< (counter-index (car counters)) (counter-index C)) 
+            (get-min-tt (cdr counters) (car counters))
+            (get-min-tt (cdr counters) C))
+         (if(< (counter-tt (car counters)) (counter-tt C))  
+            (get-min-tt (cdr counters) (car counters))
+            (get-min-tt (cdr counters) C)))))
+
+; funcție care adaugă o persoană la o casă.
+(define (add-to-counter C name n-items)
+  (tt+ (struct-copy counter C [queue (append (counter-queue C) (list(cons name n-items) ))]) n-items))
+
+
+; funcția care simulează fluxul clienților pe la case.
+(define (serve requests C1 C2 C3 C4)
+
+  ;functie care apeleaza recursiv 'serve',
+  ;modificand tt-ul casei care are index-ul index
+  (define (delay-helper index minutes)
+    (cond
+           [(equal? index 1) (serve (cdr requests) (tt+ C1 minutes) C2 C3 C4)]
+           [(equal? index 2) (serve (cdr requests) C1 (tt+ C2 minutes) C3 C4)]
+           [(equal? index 3) (serve (cdr requests) C1 C2 (tt+ C3 minutes) C4)]
+           [else (serve (cdr requests) C1 C2 C3 (tt+ C4 minutes))]))
+
+
+  ;functie care apeleaza recursiv 'serve',
+  ;adaugand un client la casa la care acesta a fost repartizat
+  ;de catre functia 'get-counter'
+  (define (request-counter C name n-items)
+    (cond
+      [(equal? (counter-index C) 1) (serve (cdr requests) (add-to-counter C name n-items) C2 C3 C4)]
+      [(equal? (counter-index C) 2) (serve (cdr requests) C1 (add-to-counter C name n-items) C3 C4)]
+      [(equal? (counter-index C) 3) (serve (cdr requests) C1 C2 (add-to-counter C name n-items) C4)]
+      [else (serve (cdr requests) C1 C2 C3 (add-to-counter C name n-items))]))
+    
+  
+   
+  (if (null? requests)
+      (list C1 C2 C3 C4)
+      (match (car requests)
+        [(list 'delay index minutes)(delay-helper index minutes)]
+        [(list name n-items) (request-counter (get-counter C1 C2 C3 C4 n-items) name n-items) ])))
+
+
+
+;intoarce casa la care se poate aseza un client
+;luand in consierare casa cu cel mai mic tt (returnata de functia get-min-tt
+;si respectand conditia ca items <= ITEMS
+(define(get-counter C1 C2 C3 C4 items)
+  (if(<= items ITEMS)
+     (get-min-tt (list C2 C3 C4 ) C1)
+     (get-min-tt (list C3 C4 ) C2)))

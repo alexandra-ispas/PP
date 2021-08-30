@@ -1,0 +1,46 @@
+#lang racket
+(require racket/match)
+
+(provide empty-queue)
+(provide queue-empty?)
+(provide enqueue)
+(provide dequeue)
+(provide top)
+
+(provide (struct-out queue))
+
+(define-struct queue (left right size-l size-r) #:transparent) 
+
+
+; o structură queue goală.
+(define empty-queue
+  (make-queue '() '() 0 0)) 
+
+
+; funcție care verifică dacă o coadă este goală.
+(define (queue-empty? q)
+ (and (zero? (queue-size-l q)) (zero? (queue-size-r q))))
+
+
+; funcție care adaugă un element la sfârșitul unei cozi.
+(define (enqueue x q)
+  (struct-copy queue q [right (cons x (queue-right q))]
+                     [size-r (add1 (queue-size-r q))]))
+
+
+; funcție care scoate primul element dintr-o coadă nevidă
+(define (dequeue q)
+  (if(null? (queue-left q)) 
+     (struct-copy queue q [left (cdr(foldl (λ(x acc)
+              (append (list x) acc)) (list (car (queue-right q))) (cdr (queue-right q))))]
+                  [right '()]
+                  [size-r 0]
+                  [size-l (sub1 (length (queue-right q)))])
+     (make-queue (cdr (queue-left q)) (queue-right q) (sub1 (queue-size-l q)) (queue-size-r q))))
+
+
+; funcție care obține primul element dintr-o coadă nevidă
+(define (top q)
+  (if(null? (queue-left q))
+     (car(foldl (λ(x acc)(append (list x) acc)) (list (car (queue-right q))) (cdr (queue-right q))))
+     (car (queue-left q))))

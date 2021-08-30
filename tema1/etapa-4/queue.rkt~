@@ -1,0 +1,57 @@
+#lang racket
+(require racket/match)
+
+(provide empty-queue)
+(provide make-queue)
+(provide queue-empty?)
+(provide rotate)             ; pentru testare
+(provide enqueue)
+(provide dequeue)
+(provide top)
+
+(provide (struct-out queue)) ; pentru testare
+
+(define-struct queue (left right size-l size-r) #:transparent) 
+
+; structură queue goală.
+(define empty-queue
+  (make-queue empty-stream '() 0 0))
+
+
+; funcție care verifică dacă o coadă este goală.
+(define (queue-empty? q)
+  (and (zero? (queue-size-l q)) (zero? (queue-size-r q))))
+
+
+; funcția rotate, conform axiomelor de mai sus.
+(define (rotate left right Acc)
+  (if(stream-empty? left)
+     (foldl (λ(x acc)
+              (stream-cons x acc)) Acc right)
+     (stream-cons (stream-first left)
+                  (rotate (stream-rest left) (cdr right) (stream-cons (car right) Acc)))))
+
+; verfifica daca este necesara o rotatie, iar daca da, o efectueaza
+(define (check-rotate q)
+  (if(< (queue-size-l q) (queue-size-r q))
+       (make-queue
+        (rotate (queue-left q) (queue-right q) empty-stream)
+        '() (+ (queue-size-l q) (queue-size-r q)) 0) q))
+  
+; funcție care adaugă un element la sfârșitul unei cozi
+(define (enqueue x q)
+  (let* ([new-queue (struct-copy queue q[right (cons x (queue-right q))]
+                                 [size-r (add1 (queue-size-r q))])])
+    (check-rotate new-queue)))
+
+
+; funcție care scoate primul element dintr-o coadă nevidă
+(define (dequeue q)
+  (let* ([new-queue(struct-copy queue q [left (stream-rest (queue-left q))]                   
+                                [size-l (- (queue-size-l q) 1)])])     
+  (check-rotate new-queue)))
+                                         
+
+; funcție care întoarce elementul aflat la începutul cozii.
+(define (top q)
+  (stream-first (queue-left q)))
